@@ -480,7 +480,6 @@ def interactive_prompt(response):
                     statement = 'SELECT Title, Medium, Artist, ObjectCreationDate FROM Art WHERE Art.Id = ' + str(number)
                     cur.execute(statement)
                     art_info = cur.fetchone()
-                    print(art_info)
                     print("{} is a {} created by {} in {}. \n".format(art_info[0], art_info[1], art_info[2], art_info[3]))
 
                 elif "browser" in response:
