@@ -5,7 +5,7 @@
 2. Twitter  (data accessed via Tweepy NOTE: for this source, a consumer key, consumer secret, access token, and access secret are needed. I have included mine in my secrets.py file in my .gitignore)
 
 ## Database Notes/User Guide:
-Due to the nature of the way The UMMA Exchange is built, in order to get to 100 rows minimum in the database, the user is prompted to search for different terms until the "Art" table has reached 100 rows. 
+Due to the nature of the way The UMMA Exchange is built, in order to get to 100 rows minimum in the database, the user is prompted to search for different terms until the "Art" table has reached 100 rows. Additionally, it is recommended to start running the code with no database created for best results. 
 Once this is achieved, the user can enter a number of different commands (as instructed) and get different information about either the general database (such as graphs that illustrate the different artists or media represented) or a specific object, accessed by its Id and a given keyword. (Please note the <# Tweets> command can be sensitive, I recommend using the Id corresponding with the object titled "(Buildings)" for a pretty result. =] Everything else, test away!
 
 ## Structure of Code:
