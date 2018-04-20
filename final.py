@@ -18,7 +18,6 @@ try:
     CACHE_DICTION = json.loads(cache_contents)
     cache_file.close()
 
-# if there was no file, no worries. There will be soon!
 except:
     CACHE_DICTION = {}
 
@@ -69,11 +68,6 @@ def get_umma_titles(term): #page will be an integer that tells you which page yo
         list_of_links.append(result[i].find("a")["href"])
         for each in titles:
             list_of_art.append(each) #making a list of all titles!
-
-    acc = 0
-    for each in list_of_art:
-        acc += 1
-        print(acc, each)
 
     return list_of_links
 
@@ -130,6 +124,7 @@ def crawl_and_populate(link_list):
     conn = sqlite3.connect(DBNAME)
     cur = conn.cursor()
 
+    artist_tracking = [] #used for making sure no repeate artists are added to the DB
     #SEARCH FOR ART TABLE INFO
     baseurl = 'https://exchange.umma.umich.edu'
     list_of_art_insts = []
@@ -166,9 +161,6 @@ def crawl_and_populate(link_list):
             last = " "
             artist_url_append = first
 
-        # crawl_result_from_artist_page = get_umma_titles(artist_url_append)
-        # artist_pages.append(crawl_result_from_artist_page)
-        # print(artist_pages)
 
         #getting the number of objects that an artist has in the UMMA collection
         artist_crawl = 'https://exchange.umma.umich.edu/quick_search/query?utf8=%E2%9C%93&q=' + artist_url_append
@@ -180,8 +172,6 @@ def crawl_and_populate(link_list):
         except:
             number = int(artist_soup.text[objects_info+14])
 
-        # list_of_artist_links.append(artist_crawl)
-
 
         #FINDING THE REST....
         stuff = page_soup.find_all(class_="col-sm-4 collectionObjectDetailText")
@@ -189,8 +179,6 @@ def crawl_and_populate(link_list):
 
         #FINDING DATE
         starting_location = (stuff[0].text).find("Creation Date") # this will return the first index of Creation Date1234
-        # print (starting_location)
-        # print (stuff[0].text[starting_location]) 
         year = stuff[0].text[starting_location+13: starting_location+17] 
         try:
             try: 
@@ -219,10 +207,13 @@ def crawl_and_populate(link_list):
             art_nat = almost_nat
 
         #POPULATING ARTIST TABLE
-        insertion = (None, first, last, art_nat, number) 
-        statement = 'INSERT INTO "Artists" '
-        statement += 'VALUES (?, ?, ?, ?, ?)'
-        cur.execute(statement, insertion)
+        if (first, last) not in artist_tracking:
+            insertion = (None, first, last, art_nat, number) 
+            statement = 'INSERT INTO "Artists" '
+            statement += 'VALUES (?, ?, ?, ?, ?)'
+            cur.execute(statement, insertion)
+
+        artist_tracking.append((first, last))
 
         #create ART class instances for next function
         each_artwork = Art(art_title, art_artist, last, art_date, art_med, art_dim, each_art_page)
@@ -232,7 +223,6 @@ def crawl_and_populate(link_list):
     conn.close()
 
     return list_of_art_insts
-
 
 def populate_art_table(list_of_art_insts):
     conn = sqlite3.connect(DBNAME)
@@ -248,28 +238,22 @@ def populate_art_table(list_of_art_insts):
         statement += 'VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         cur.execute(statement, insertion)
 
-    # webbrowser.open(list_of_art_insts[0].url) #this is be the webpage I want! (pass in the index that the user enters)
-
     conn.commit()
     conn.close()
     
-def plot_artists_for_search(list_of_art_insts):
+def plot_artists_for_search():
     conn = sqlite3.connect(DBNAME)
     cur = conn.cursor()
 
     artists = []
     artworks = []
 
-    statement = "SELECT COUNT(Artist) FROM Art JOIN Artists ON Art.ArtistId = Artists.Id GROUP BY Artists.Id"
+    statement = "SELECT COUNT(Artist), Artist FROM Art JOIN Artists ON Art.ArtistId = Artists.Id GROUP BY Artists.Id"
     cur.execute(statement)
-    numbers = cur.fetchall()
-    for number in numbers:
-        artworks.append(number[0])
-
-
-    for art in list_of_art_insts:
-        if str(art.artist) not in artists:
-            artists.append(str(art.artist))
+    infos = cur.fetchall()
+    for info in infos:
+        artworks.append(info[0])
+        artists.append(info[1])
 
     data = [go.Bar(
             x=artists,
@@ -279,7 +263,6 @@ def plot_artists_for_search(list_of_art_insts):
     py.plot(data, filename='basic-bar2')
     conn.commit()
     conn.close()
-    
 
 def plot_medium():
     conn = sqlite3.connect(DBNAME)
@@ -293,28 +276,28 @@ def plot_medium():
     conn.commit()
     conn.close()
 
-
-    labels = ['Photograph','Painting','Sketch','Woodwork','Pottery', 'Sculpture', 'Fabric', 'Other']
-    values = [0, 0, 0, 0, 0, 0, 0, 0]
+    labels = ['Photography','Painting','Sketch','Woodwork','Pottery', 'Sculpture', 'Fabric', 'Print', 'Other']
+    values = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
     for each in mediums:
-        if "lithograph" in each or "gelatin" in each or "platinum" in each or "albumen" in each:
+        if "lithograph" in each or "gelatin" in each or "platinum" in each or "albumen" in each or "drypoint" in each or "iris" in each or "photograph" in each:
             values[0] += 1
-        elif "aquatint" in each or "oil" in each or "watercolor" in each or "canvas" in each:
+        elif "aquatint" in each or "oil" in each or "watercolor" in each or "canvas" in each or "acrylic" in each:
             values[1] += 1
-        elif "engraving" in each or "ink" in each:
+        elif "engraving" in each or "ink" in each or "pencil" in each:
             values[2] += 1
         elif "wood" in each or "plywood" in each:
             values[3] += 1
-        elif "porcelin" in each or "clay" in each:
+        elif "porcelain" in each or "clay" in each or "glaze" in each:
             values[4] += 1
-        elif "marble" in each or "stone" in each:
+        elif "marble" in each or "stone" in each or "ceramic" in each:
             values[5] += 1
-        elif "silk" in each:
+        elif "silk" in each or "blanket" in each or "cotton" in each:
             values[6] += 1
-        else:
+        elif "mezzotint" in each or "print" in each:
             values[7] += 1
-
+        else:
+            values[8] += 1
 
     trace = go.Pie(labels=labels, values=values)
 
@@ -351,8 +334,6 @@ def plot_tweets(searched_tweets):
         params_dict["query"] = each
         params_dict["key"] = "AIzaSyCKWaW6wM0pAj86rA_SWSAYNXLONYCAWeU"
         tweet_data = caching_func(base_url, params_dict)
-        # print(tweet_data)
-        #print(each.user.location)
         if tweet_data["status"] != "ZERO_RESULTS":
             lat_vals.append(tweet_data["results"][0]["geometry"]["location"]["lat"])
             lon_vals.append(tweet_data["results"][0]["geometry"]["location"]["lng"])
@@ -427,77 +408,61 @@ def plot_favorites(searched_tweets):
         follower_num = tweet.user.followers_count
         followers.append(follower_num)
 
-    print(tweeters)
-    print(followers) 
-
     data = [go.Bar(
-            x=tweeters,
-            y=followers
+            x=followers,
+            y=tweeters,
+            orientation = 'h'
     )]
 
     py.plot(data, filename='basic-bar')
 
 
-def process_command(command):
-    conn = sqlite3.connect(DBNAME)
-    cur = conn.cursor()
-
-    # try:
-    #     number = int(command[:2])
-    input("What object would you like to know more about?")
-
-    # if "graph" in command:
-
-    #     if "tweets" in command:
-    pass
-
-
-
-
-def load_help_text():
-    with open('help.txt') as f:
-        return f.read()
-    pass
-
-# Part 3: Implement interactive prompt. We've started for you!
-def interactive_prompt():
-    help_text = load_help_text()
-
+def make_database():
     create_art_db()
     conn = sqlite3.connect(DBNAME)
     cur = conn.cursor()
+    print("Time to populate your database!")
 
     response = ''
-    print("Time to populate your database!")
+
+    flag = True
 
     while response != 'exit':
 
-        statement = 'SELECT COUNT(Id) FROM Art'
-        cur.execute(statement)
-        check = cur.fetchone()[0]
+        if flag == True:
+            response = input("Please enter search terms until databse is ready: ")
+            populate_art_table(crawl_and_populate(get_umma_titles(response)))
 
-        #####
-        if check < 100:
-            while check < 100:
-                response = input("Please enter search terms until databse is ready.")
-                result = crawl_and_populate(get_umma_titles(response))
-                populate_art_table(result)
-                search_terms.append(response)
-
-        elif check > 100:
-
-            statement = 'SELECT Id, Title FROM Art'
+            statement = 'SELECT COUNT(Id) FROM Art'
             cur.execute(statement)
-            titles = cur.fetchall()
-            for each in titles:
-                print(each[0], each[1])
+            check = cur.fetchone()[0]
+            if check > 100:
+                flag = False
+                response = ''
+                print("Database has reached 100 rows.")
+                return
+    conn.commit()
+    conn.close()c
 
+def interactive_prompt(response):
+    conn = sqlite3.connect(DBNAME)
+    cur = conn.cursor()
 
-            response = input("For information options about the database as a whole, type 'general'. For information options about a specific work of art, type 'art'.")
+    while response != 'exit':
+
+        try:
+            if response == "1":
+                statement = 'SELECT Id, Title FROM Art'
+                cur.execute(statement)
+                titles = cur.fetchall()
+                for each in titles:
+                    print(each[0], each[1])
+            
+            response = input("For information options about the database as a whole, type 'general'. For information options about a specific work of art, type 'art'. \n")
 
             if response == "art":
 
-                response = input("Which work of art would you like to know more about? Enter a number, followed by 'info', browser', 'artist', 'tweets', or 'tweeters'.")
+                response = input("Which work of art would you like to know more about? Enter a number, followed by 'info', browser', 'artist', 'tweets', or 'tweeters'. \n")
 
                 try:
                     try:
@@ -507,35 +472,33 @@ def interactive_prompt():
                 except:
                     number = int(response[0]) #if 1 digit number
 
-                id_num = number + 1
-                statement = 'SELECT Title FROM Art WHERE Art.Id = ' + str(id_num)
+                statement = 'SELECT Title FROM Art WHERE Art.Id = ' + str(number)
                 cur.execute(statement)
                 art_title = cur.fetchone()[0]
 
                 if "info" in response:
-                    statement = 'SELECT Title, Medium, Artist, ObjectCreationDate FROM Art WHERE Art.Id = ' + str(id_num)
+                    statement = 'SELECT Title, Medium, Artist, ObjectCreationDate FROM Art WHERE Art.Id = ' + str(number)
                     cur.execute(statement)
-                    art_info = cur.fetchone()[0]
-                    print("{} is a {} created by {} in {}".format(art_info[0], art_info[1], art_info[2], art_info[3]))
+                    art_info = cur.fetchone()
+                    print(art_info)
+                    print("{} is a {} created by {} in {}. \n".format(art_info[0], art_info[1], art_info[2], art_info[3]))
 
                 elif "browser" in response:
-
-                    statement = 'SELECT URL FROM Art WHERE Id = ' + str(id_num)
-                    cur.excecute(statement)
+                    statement = 'SELECT URL FROM Art WHERE Id = ' + str(number)
+                    cur.execute(statement)
                     open_url = cur.fetchone()[0]
                     webbrowser.open(open_url)
 
                 elif "artist" in response:
-
-                    statement = 'SELECT Artist, Nationality, ObjectsInCollection FROM Artists JOIN Art ON Art.ArtistId = Artists.Id WHERE Art.Id = ' + str(id_num)
-                    cur.execte(statement)
-                    artist_info = cur.fetchone()[0]
-                    print("{} is a {} artist with {} objects in the UMMA collection".format(artist_info[0], artist_info[1], artist_info[2]))
+                    statement = 'SELECT Artist, Nationality, ObjectsInCollection FROM Artists JOIN Art ON Art.ArtistId = Artists.Id WHERE Art.Id = ' + str(number)
+                    cur.execute(statement)
+                    artist_info = cur.fetchone()
+                    print("{} is a {} artist with {} objects in the UMMA collection. \n".format(artist_info[0], artist_info[1], artist_info[2]))
 
                 elif 'tweet' in response:
                     tweet_search = get_tweets(art_title)
 
-                    if 'tweets' in reponse:
+                    if 'tweets' in response:
                         plot_tweets(tweet_search)
 
                     elif 'tweeter' in response:
@@ -543,7 +506,7 @@ def interactive_prompt():
 
             elif response == "general":
 
-                response = input("For a char showing the differnt media reresented in the database, type 'media'. For a chat showing different artists represetend in the database, type 'artists'.")
+                response = input("For a chart showing the differnt media rerpesented in the database, type 'media'\nFor a chart showing different artists represetend in the database, type 'artists'")
 
                 if response == "media":
                     plot_medium()
@@ -551,62 +514,16 @@ def interactive_prompt():
                 elif response == "artists":
                     plot_artists_for_search()
 
+                else:
+                    response = input("Please enter a valid command! ")
 
-
-
-        response = input("Please enter a valid command for more information. Type 'help' for a list of commands.")
-        if response == 'help':
-            print(help_text)
-            continue
-
-        
-
-        try:
-            process_command(response)
         except:
-            if response != 'exit':
-                print("Please enter a valid command")
-                continue
-    pass
+            response = input("Please enter a valid command! ")
+    conn.commit()
+    conn.close()
 
 
-
-create_art_db()
-
-populate_art_table(crawl_and_populate(get_umma_titles("gown"))) #list of art instances 
-print("sucess")
-
-conn = sqlite3.connect(DBNAME)
-cur = conn.cursor()
-
-statement = 'SELECT Id, Title FROM Art'
-cur.execute(statement)
-
-titles = cur.fetchall()
-for each in titles:
-    print(each[0], each[1])
-
-conn.commit()
-conn.close()
-
-
-# plot_artists_for_search(result)
-
-# plot_medium()
-# plot_tweets(get_tweets("Still Life with Apples")) This works
-
-# plot_favorites(get_tweets("Still Life with Apples")) works for all numers
-
-#for interactivepart:
-    # acc = 0
-    # for each in crawl_and_populate(get_umma_titles("apple")):
-    #     acc += 1
-    #     print(acc, each.title)
-
-
-#CLASSES NOTE - option to define/mak instances of classes as you are pulling stuff from the database (define class that will represent that peice of data)
-
-# DB: #homework 11, project 3 
-
-#create function at bottom that will run all of the functions 
+if __name__=="__main__":
+    make_database()
+    interactive_prompt(input("Press 1 for a list of all artwork in the database. "))
 
